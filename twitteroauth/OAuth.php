@@ -90,9 +90,9 @@ abstract class OAuthSignatureMethod {
 }
 
 /**
- * The HMAC-SHA1 signature method uses the HMAC-SHA1 signature algorithm as defined in [RFC2104] 
- * where the Signature Base String is the text and the key is the concatenated values (each first 
- * encoded per Parameter Encoding) of the Consumer Secret and Token Secret, separated by an '&' 
+ * The HMAC-SHA1 signature method uses the HMAC-SHA1 signature algorithm as defined in [RFC2104]
+ * where the Signature Base String is the text and the key is the concatenated values (each first
+ * encoded per Parameter Encoding) of the Consumer Secret and Token Secret, separated by an '&'
  * character (ASCII code 38) even if empty.
  *   - Chapter 9.2 ("HMAC-SHA1")
  */
@@ -118,7 +118,7 @@ class OAuthSignatureMethod_HMAC_SHA1 extends OAuthSignatureMethod {
 }
 
 /**
- * The PLAINTEXT method does not provide any security protection and SHOULD only be used 
+ * The PLAINTEXT method does not provide any security protection and SHOULD only be used
  * over a secure channel such as HTTPS. It does not use the Signature Base String.
  *   - Chapter 9.4 ("PLAINTEXT")
  */
@@ -128,8 +128,8 @@ class OAuthSignatureMethod_PLAINTEXT extends OAuthSignatureMethod {
   }
 
   /**
-   * oauth_signature is set to the concatenated encoded values of the Consumer Secret and 
-   * Token Secret, separated by a '&' character (ASCII code 38), even if either secret is 
+   * oauth_signature is set to the concatenated encoded values of the Consumer Secret and
+   * Token Secret, separated by a '&' character (ASCII code 38), even if either secret is
    * empty. The result MUST be encoded again.
    *   - Chapter 9.4.1 ("Generating Signatures")
    *
@@ -151,10 +151,10 @@ class OAuthSignatureMethod_PLAINTEXT extends OAuthSignatureMethod {
 }
 
 /**
- * The RSA-SHA1 signature method uses the RSASSA-PKCS1-v1_5 signature algorithm as defined in 
- * [RFC3447] section 8.2 (more simply known as PKCS#1), using SHA-1 as the hash function for 
- * EMSA-PKCS1-v1_5. It is assumed that the Consumer has provided its RSA public key in a 
- * verified way to the Service Provider, in a manner which is beyond the scope of this 
+ * The RSA-SHA1 signature method uses the RSASSA-PKCS1-v1_5 signature algorithm as defined in
+ * [RFC3447] section 8.2 (more simply known as PKCS#1), using SHA-1 as the hash function for
+ * EMSA-PKCS1-v1_5. It is assumed that the Consumer has provided its RSA public key in a
+ * verified way to the Service Provider, in a manner which is beyond the scope of this
  * specification.
  *   - Chapter 9.3 ("RSA-SHA1")
  */
@@ -218,16 +218,15 @@ abstract class OAuthSignatureMethod_RSA_SHA1 extends OAuthSignatureMethod {
 }
 
 class OAuthRequest {
-  private $parameters;
-  private $http_method;
-  private $http_url;
+  private $parameters = null;
+  private $http_method = null;
+  private $http_url = null;
   // for debug purposes
   public $base_string;
   public static $version = '1.0';
   public static $POST_INPUT = 'php://input';
 
-  function __construct($http_method, $http_url, $parameters=NULL) {
-    @$parameters or $parameters = array();
+  function __construct($http_method, $http_url, $parameters=array()) {
     $parameters = array_merge( OAuthUtil::parse_parameters(parse_url($http_url, PHP_URL_QUERY)), $parameters);
     $this->parameters = $parameters;
     $this->http_method = $http_method;
@@ -242,12 +241,12 @@ class OAuthRequest {
     $scheme = (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] != "on")
               ? 'http'
               : 'https';
-    @$http_url or $http_url = $scheme .
+    $http_url = $scheme .
                               '://' . $_SERVER['HTTP_HOST'] .
                               ':' .
                               $_SERVER['SERVER_PORT'] .
                               $_SERVER['REQUEST_URI'];
-    @$http_method or $http_method = $_SERVER['REQUEST_METHOD'];
+    $http_method = $_SERVER['REQUEST_METHOD'];
 
     // We weren't handed any parameters, so let's find the ones relevant to
     // this request.
@@ -263,7 +262,7 @@ class OAuthRequest {
       // It's a POST request of the proper content-type, so parse POST
       // parameters and add those overriding any duplicates from GET
       if ($http_method == "POST"
-          && @strstr($request_headers["Content-Type"],
+          && strstr($request_headers["Content-Type"],
                      "application/x-www-form-urlencoded")
           ) {
         $post_data = OAuthUtil::parse_parameters(
@@ -274,7 +273,7 @@ class OAuthRequest {
 
       // We have a Authorization-header with OAuth data. Parse the header
       // and add those overriding any duplicates from GET or POST
-      if (@substr($request_headers['Authorization'], 0, 6) == "OAuth ") {
+      if (substr($request_headers['Authorization'], 0, 6) == "OAuth ") {
         $header_parameters = OAuthUtil::split_header(
           $request_headers['Authorization']
         );
@@ -289,8 +288,7 @@ class OAuthRequest {
   /**
    * pretty much a helper function to set up the request
    */
-  public static function from_consumer_and_token($consumer, $token, $http_method, $http_url, $parameters=NULL) {
-    @$parameters or $parameters = array();
+  public static function from_consumer_and_token($consumer, $token, $http_method, $http_url, $parameters=array()) {
     $defaults = array("oauth_version" => OAuthRequest::$version,
                       "oauth_nonce" => OAuthRequest::generate_nonce(),
                       "oauth_timestamp" => OAuthRequest::generate_timestamp(),
@@ -380,12 +378,16 @@ class OAuthRequest {
   public function get_normalized_http_url() {
     $parts = parse_url($this->http_url);
 
-    $port = @$parts['port'];
     $scheme = $parts['scheme'];
     $host = $parts['host'];
-    $path = @$parts['path'];
+    $path = $parts['path'];
 
-    $port or $port = ($scheme == 'https') ? '443' : '80';
+    if (isset($parts['port'])){
+    	$port = ($scheme == 'https') ? '443' : '80';
+    }
+    else {
+    	    $port = $parts['port'];
+    }
 
     if (($scheme == 'https' && $port != '443')
         || ($scheme == 'http' && $port != '80')) {
@@ -556,7 +558,7 @@ class OAuthServer {
   private function get_version(&$request) {
     $version = $request->get_parameter("oauth_version");
     if (!$version) {
-      // Service Providers MUST assume the protocol version to be 1.0 if this parameter is not present. 
+      // Service Providers MUST assume the protocol version to be 1.0 if this parameter is not present.
       // Chapter 7.0 ("Accessing Protected Ressources")
       $version = '1.0';
     }
@@ -570,8 +572,7 @@ class OAuthServer {
    * figure out the signature with some defaults
    */
   private function get_signature_method(&$request) {
-    $signature_method =
-        @$request->get_parameter("oauth_signature_method");
+    $signature_method = $request->get_parameter("oauth_signature_method");
 
     if (!$signature_method) {
       // According to chapter 7 ("Accessing Protected Ressources") the signature-method
@@ -594,7 +595,7 @@ class OAuthServer {
    * try to find the consumer for the provided request's consumer key
    */
   private function get_consumer(&$request) {
-    $consumer_key = @$request->get_parameter("oauth_consumer_key");
+    $consumer_key = $request->get_parameter("oauth_consumer_key");
     if (!$consumer_key) {
       throw new OAuthException("Invalid consumer key");
     }
@@ -611,7 +612,7 @@ class OAuthServer {
    * try to find the token for the provided request's token key
    */
   private function get_token(&$request, $consumer, $token_type="access") {
-    $token_field = @$request->get_parameter('oauth_token');
+    $token_field = $request->get_parameter('oauth_token');
     $token = $this->data_store->lookup_token(
       $consumer, $token_type, $token_field
     );
@@ -627,8 +628,8 @@ class OAuthServer {
    */
   private function check_signature(&$request, $consumer, $token) {
     // this should probably be in a different method
-    $timestamp = @$request->get_parameter('oauth_timestamp');
-    $nonce = @$request->get_parameter('oauth_nonce');
+    $timestamp = $request->get_parameter('oauth_timestamp');
+    $nonce = $request->get_parameter('oauth_nonce');
 
     $this->check_timestamp($timestamp);
     $this->check_nonce($consumer, $token, $nonce, $timestamp);
