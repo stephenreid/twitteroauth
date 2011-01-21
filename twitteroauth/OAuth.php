@@ -241,11 +241,13 @@ class OAuthRequest {
     $scheme = (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] != "on")
               ? 'http'
               : 'https';
-    $http_url = $scheme .
-                              '://' . $_SERVER['HTTP_HOST'] .
-                              ':' .
-                              $_SERVER['SERVER_PORT'] .
-                              $_SERVER['REQUEST_URI'];
+    if (!$http_url){//if we werent passed it, build it manually
+    	$http_url = $scheme .
+    	 '://' . $_SERVER['HTTP_HOST'] .
+    	 ':' .
+    	$_SERVER['SERVER_PORT'] .
+    	$_SERVER['REQUEST_URI'];
+    }
     $http_method = $_SERVER['REQUEST_METHOD'];
 
     // We weren't handed any parameters, so let's find the ones relevant to
